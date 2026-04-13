@@ -1374,6 +1374,46 @@ api_key_env = "FIREWORKS_API_KEY"
             kwargs = _get_provider_kwargs("google_genai")
             assert kwargs == {}
 
+    def test_gigachat_uses_credentials_kwarg(self) -> None:
+        """GigaChat reads env creds into `credentials`, not `api_key`."""
+        with patch.dict("os.environ", {"GIGACHAT_CREDENTIALS": "secret"}, clear=True):
+            kwargs = _get_provider_kwargs("gigachat")
+
+        assert kwargs["credentials"] == "secret"
+        assert "api_key" not in kwargs
+
+    def test_gigachat_user_password_and_urls_override_config(
+        self, tmp_path: Path
+    ) -> None:
+        """GigaChat env vars should override config base_url and auth_url."""
+        config_path = tmp_path / "config.toml"
+        config_path.write_text("""
+[models.providers.gigachat]
+base_url = "https://config-base.example"
+
+[models.providers.gigachat.params]
+auth_url = "https://config-auth.example"
+""")
+        with (
+            patch.object(model_config, "DEFAULT_CONFIG_PATH", config_path),
+            patch.dict(
+                "os.environ",
+                {
+                    "GIGACHAT_BASE_URL": "https://env-base.example",
+                    "GIGACHAT_AUTH_URL": "https://env-auth.example",
+                    "GIGACHAT_USER": "alice",
+                    "GIGACHAT_PASSWORD": "secret",
+                },
+                clear=True,
+            ),
+        ):
+            kwargs = _get_provider_kwargs("gigachat")
+
+        assert kwargs["base_url"] == "https://env-base.example"
+        assert kwargs["auth_url"] == "https://env-auth.example"
+        assert kwargs["user"] == "alice"
+        assert kwargs["password"] == "secret"
+
     def test_merges_config_params(self, tmp_path: Path) -> None:
         """Merges params from config with base_url and api_key."""
         config_path = tmp_path / "config.toml"
@@ -1929,6 +1969,20 @@ class TestCreateModelViaInitImportError:
         ):
             _create_model_via_init("model", "dotted.provider", {})
 
+    @patch("langchain.chat_models.init_chat_model")
+    def test_gigachat_missing_package_error(self, mock_init: Mock) -> None:
+        """GigaChat shows the manual install hint when the package is missing."""
+        mock_init.side_effect = AssertionError("init_chat_model should not be used")
+        with (
+            patch.dict("sys.modules", {"langchain_gigachat": None}),
+            patch("importlib.util.find_spec", return_value=None),
+            pytest.raises(
+                ModelConfigError,
+                match=r"uv tool install deepagents-cli --with langchain-gigachat",
+            ),
+        ):
+            _create_model_via_init("GigaChat-2-Max", "gigachat", {})
+
 
 class TestDetectProvider:
     """Tests for detect_provider() auto-detection from model names."""
@@ -1944,6 +1998,7 @@ class TestDetectProvider:
             ("claude-sonnet-4-5", "anthropic"),
             ("claude-opus-4-5", "anthropic"),
             ("gemini-3.1-pro-preview", "google_genai"),
+            ("GigaChat-2-Max", "gigachat"),
             ("nemotron-3-nano-30b-a3b", "nvidia"),
             ("nvidia/nemotron-3-nano-30b-a3b", "nvidia"),
             ("llama3", None),

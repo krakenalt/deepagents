@@ -2,12 +2,73 @@
 
 from __future__ import annotations
 
+import importlib.util
+import os
 from typing import Any
 
 from langchain.chat_models import init_chat_model
 from langchain_core.language_models import BaseChatModel
 
 from deepagents.profiles import _get_harness_profile
+
+
+def _gigachat_env_kwargs() -> dict[str, str]:
+    """Read GigaChat kwargs from environment variables."""
+    env_to_kwarg = {
+        "GIGACHAT_AUTH_URL": "auth_url",
+        "GIGACHAT_BASE_URL": "base_url",
+        "GIGACHAT_CREDENTIALS": "credentials",
+        "GIGACHAT_PASSWORD": "password",
+        "GIGACHAT_SCOPE": "scope",
+        "GIGACHAT_USER": "user",
+    }
+    result: dict[str, str] = {}
+    for env_name, kwarg in env_to_kwarg.items():
+        value = os.environ.get(env_name)
+        if value:
+            result[kwarg] = value
+    return result
+
+
+def _resolve_gigachat_model(spec: str, kwargs: dict[str, Any]) -> BaseChatModel:
+    """Resolve a `gigachat:` model spec without relying on `init_chat_model`.
+
+    LangChain's built-in provider registry does not currently expose
+    `gigachat`, so `init_chat_model("gigachat:...")` raises
+    `Unsupported provider`. We instantiate `langchain_gigachat.GigaChat`
+    directly instead.
+
+    Args:
+        spec: Model spec in `gigachat:model-name` format.
+        kwargs: Extra constructor kwargs forwarded to `GigaChat`.
+
+    Returns:
+        Instantiated `GigaChat` chat model.
+
+    Raises:
+        ImportError: If `langchain-gigachat` is not installed.
+    """
+    _provider, _sep, model_name = spec.partition(":")
+    try:
+        from langchain_gigachat import GigaChat  # noqa: PLC0415  # Optional provider import should stay lazy
+    except ImportError as exc:
+        try:
+            spec_found = importlib.util.find_spec("langchain_gigachat") is not None
+        except (ImportError, ValueError):
+            spec_found = False
+        if spec_found:
+            msg = (
+                "Provider package 'langchain-gigachat' is installed but failed "
+                f"to import for model '{spec}': {exc}"
+            )
+        else:
+            msg = (
+                "Missing package for provider 'gigachat'. "
+                "Install it with `pip install langchain-gigachat`."
+            )
+        raise ImportError(msg) from exc
+
+    return GigaChat(model=model_name, **kwargs)
 
 
 def resolve_model(model: str | BaseChatModel) -> BaseChatModel:
@@ -41,6 +102,10 @@ def resolve_model(model: str | BaseChatModel) -> BaseChatModel:
     kwargs: dict[str, Any] = {**profile.init_kwargs}
     if profile.init_kwargs_factory is not None:
         kwargs.update(profile.init_kwargs_factory())
+
+    if model.startswith("gigachat:"):
+        kwargs.update(_gigachat_env_kwargs())
+        return _resolve_gigachat_model(model, kwargs)
 
     return init_chat_model(model, **kwargs)  # kwargs may be empty
 

@@ -1,6 +1,8 @@
 """Tests for deepagents._models helpers."""
 
 import os
+import sys
+import types
 from importlib.metadata import PackageNotFoundError
 from unittest.mock import MagicMock, patch
 
@@ -109,6 +111,43 @@ class TestResolveModel:
 
         mock.assert_called_once_with("anthropic:claude-sonnet-4-6")
         assert result is mock.return_value
+
+    def test_gigachat_prefix_uses_direct_model(self) -> None:
+        gigachat_model = MagicMock(spec=BaseChatModel)
+        fake_module = types.SimpleNamespace(GigaChat=MagicMock(return_value=gigachat_model))
+        with (
+            patch.dict(sys.modules, {"langchain_gigachat": fake_module}),
+            patch.dict(
+                os.environ,
+                {
+                    "GIGACHAT_BASE_URL": "https://base.example",
+                    "GIGACHAT_AUTH_URL": "https://auth.example",
+                    "GIGACHAT_USER": "alice",
+                    "GIGACHAT_PASSWORD": "secret",
+                },
+                clear=False,
+            ),
+            patch("deepagents._models.init_chat_model") as mock_init,
+        ):
+            result = resolve_model("gigachat:GigaChat-3-Ultra")
+
+        fake_module.GigaChat.assert_called_once_with(
+            model="GigaChat-3-Ultra",
+            auth_url="https://auth.example",
+            base_url="https://base.example",
+            user="alice",
+            password="secret",  # noqa: S106  # test fixture value, not a real credential
+        )
+        mock_init.assert_not_called()
+        assert result is gigachat_model
+
+    def test_gigachat_missing_package_shows_install_hint(self) -> None:
+        with (
+            patch.dict(sys.modules, {"langchain_gigachat": None}),
+            patch("importlib.util.find_spec", return_value=None),
+            pytest.raises(ImportError, match="pip install langchain-gigachat"),
+        ):
+            resolve_model("gigachat:GigaChat-3-Ultra")
 
 
 class TestGetModelIdentifier:

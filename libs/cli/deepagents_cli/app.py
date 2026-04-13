@@ -4796,7 +4796,7 @@ class DeepAgentsApp(App):
         from deepagents_cli.config import create_model, detect_provider, settings
         from deepagents_cli.model_config import (
             ModelSpec,
-            get_credential_env_var,
+            get_credential_hint,
             has_provider_credentials,
             save_recent_model,
         )
@@ -4830,10 +4830,10 @@ class DeepAgentsApp(App):
             # Check credentials
             has_creds = has_provider_credentials(provider) if provider else None
             if has_creds is False and provider is not None:
-                env_var = get_credential_env_var(provider)
+                credential_hint = get_credential_hint(provider)
                 detail = (
-                    f"{env_var} is not set or is empty"
-                    if env_var
+                    f"{credential_hint} is not configured"
+                    if credential_hint
                     else (
                         f"provider '{provider}' is not recognized. "
                         "Add it to ~/.deepagents/config.toml with an "

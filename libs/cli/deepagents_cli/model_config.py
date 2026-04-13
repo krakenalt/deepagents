@@ -232,6 +232,7 @@ PROVIDER_API_KEY_ENV: dict[str, str] = {
     "cohere": "COHERE_API_KEY",
     "deepseek": "DEEPSEEK_API_KEY",
     "fireworks": "FIREWORKS_API_KEY",
+    "gigachat": "GIGACHAT_CREDENTIALS",
     "google_genai": "GOOGLE_API_KEY",
     "google_vertexai": "GOOGLE_CLOUD_PROJECT",
     "groq": "GROQ_API_KEY",
@@ -264,6 +265,16 @@ These providers can authenticate without the env var listed in
 `PROVIDER_API_KEY_ENV`, so a missing env var should not be treated as a hard
 credential failure. Used by `create_model` to skip the early credential check.
 """
+
+_EXTRA_PROVIDER_PROFILE_MODULES: dict[str, str] = {
+    "gigachat": "langchain_gigachat.data._profiles",
+}
+"""Provider profiles that are not exposed via langchain's built-in registry."""
+
+_PROVIDER_CREDENTIAL_HINTS: dict[str, str] = {
+    "gigachat": "GIGACHAT_CREDENTIALS or both GIGACHAT_USER and GIGACHAT_PASSWORD",
+}
+"""User-facing credential hints for providers with multiple auth paths."""
 
 
 # Module-level caches — cleared by `clear_caches()`.
@@ -335,6 +346,12 @@ def _get_provider_profile_modules() -> list[tuple[str, str]]:
     for provider_name, (module_path, *_rest) in providers.items():
         package_root = module_path.split(".", maxsplit=1)[0]
         profile_module = f"{package_root}.data._profiles"
+        key = (provider_name, profile_module)
+        if key not in seen:
+            seen.add(key)
+            result.append((provider_name, profile_module))
+
+    for provider_name, profile_module in _EXTRA_PROVIDER_PROFILE_MODULES.items():
         key = (provider_name, profile_module)
         if key not in seen:
             seen.add(key)
@@ -762,6 +779,12 @@ def has_provider_credentials(provider: str) -> bool | None:
         # No api_key_env in config — fall through to hardcoded map.
 
     # Fall back to hardcoded well-known providers.
+    if provider == "gigachat":
+        return bool(resolve_env_var("GIGACHAT_CREDENTIALS")) or (
+            bool(resolve_env_var("GIGACHAT_USER"))
+            and bool(resolve_env_var("GIGACHAT_PASSWORD"))
+        )
+
     env_var = PROVIDER_API_KEY_ENV.get(provider)
     if env_var:
         return bool(resolve_env_var(env_var))
@@ -792,6 +815,27 @@ def get_credential_env_var(provider: str) -> str | None:
     config_env = config.get_api_key_env(provider)
     if config_env:
         return config_env
+    return PROVIDER_API_KEY_ENV.get(provider)
+
+
+def get_credential_hint(provider: str) -> str | None:
+    """Return a user-facing hint describing how to authenticate a provider.
+
+    Checks the config file first (user override), then provider-specific auth
+    hints, then falls back to the hardcoded `PROVIDER_API_KEY_ENV` map.
+
+    Args:
+        provider: Provider name.
+
+    Returns:
+        Credential hint string, or None if unknown.
+    """
+    config = ModelConfig.load()
+    config_env = config.get_api_key_env(provider)
+    if config_env:
+        return config_env
+    if provider in _PROVIDER_CREDENTIAL_HINTS:
+        return _PROVIDER_CREDENTIAL_HINTS[provider]
     return PROVIDER_API_KEY_ENV.get(provider)
 
 

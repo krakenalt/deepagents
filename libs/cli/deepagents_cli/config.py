@@ -21,6 +21,20 @@ from deepagents_cli._version import __version__
 
 logger = logging.getLogger(__name__)
 
+_PROVIDER_AUTH_KWARG: dict[str, str] = {"gigachat": "credentials"}
+"""Provider-specific constructor kwargs for env-based credentials."""
+
+_PROVIDER_EXTRA_ENV_KWARGS: dict[str, dict[str, str]] = {
+    "gigachat": {
+        "GIGACHAT_AUTH_URL": "auth_url",
+        "GIGACHAT_BASE_URL": "base_url",
+        "GIGACHAT_PASSWORD": "password",
+        "GIGACHAT_SCOPE": "scope",
+        "GIGACHAT_USER": "user",
+    },
+}
+"""Additional provider kwargs sourced from environment variables."""
+
 # ---------------------------------------------------------------------------
 # Lazy bootstrap: dotenv loading, LANGSMITH_PROJECT override, and start-path
 # detection are deferred until first access of `settings` (via module
@@ -1804,6 +1818,9 @@ def detect_provider(model_name: str) -> str | None:
     if model_lower.startswith(("nemotron", "nvidia/")):
         return "nvidia"
 
+    if model_lower.startswith("gigachat"):
+        return "gigachat"
+
     return None
 
 
@@ -1932,9 +1949,15 @@ def _get_provider_kwargs(
                 provider,
             )
     if api_key_env:
-        api_key = resolve_env_var(api_key_env)
-        if api_key:
-            result["api_key"] = api_key
+        credential = resolve_env_var(api_key_env)
+        if credential:
+            credential_kwarg = _PROVIDER_AUTH_KWARG.get(provider, "api_key")
+            result[credential_kwarg] = credential
+
+    for env_name, kwarg in _PROVIDER_EXTRA_ENV_KWARGS.get(provider, {}).items():
+        env_value = resolve_env_var(env_name)
+        if env_value:
+            result[kwarg] = env_value
 
     if provider == "openrouter":
         from deepagents.profiles._openrouter import (
@@ -2028,9 +2051,34 @@ def _create_model_via_init(
     Raises:
         ModelConfigError: On import, value, or runtime errors.
     """
-    from langchain.chat_models import init_chat_model
-
     from deepagents_cli.model_config import ModelConfigError
+
+    if provider == "gigachat":
+        try:
+            from langchain_gigachat import GigaChat
+        except ImportError as e:
+            import importlib.util
+
+            try:
+                spec_found = importlib.util.find_spec("langchain_gigachat") is not None
+            except (ImportError, ValueError):
+                spec_found = False
+            if spec_found:
+                msg = (
+                    "Provider package 'langchain-gigachat' is installed but failed "
+                    f"to import for provider '{provider}': {e}"
+                )
+            else:
+                msg = (
+                    f"Missing package for provider '{provider}'. "
+                    "Install it with `uv tool install deepagents-cli --with "
+                    "langchain-gigachat` or `pip install langchain-gigachat`."
+                )
+            raise ModelConfigError(msg) from e
+
+        return GigaChat(model=model_name, **kwargs)
+
+    from langchain.chat_models import init_chat_model
 
     try:
         if provider:
@@ -2202,7 +2250,7 @@ def create_model(
         ModelConfig,
         ModelConfigError,
         ModelSpec,
-        get_credential_env_var,
+        get_credential_hint,
         has_provider_credentials,
     )
 
@@ -2241,10 +2289,12 @@ def create_model(
     if provider and provider not in IMPLICIT_AUTH_PROVIDERS:
         cred_status = has_provider_credentials(provider)
         if cred_status is False:
-            env_var = get_credential_env_var(provider) or f"<{provider} API key>"
+            credential_hint = get_credential_hint(
+                provider
+            ) or f"<{provider} credentials>"
             msg = (
                 f"No credentials found for provider '{provider}'. "
-                f"Please set the {env_var} environment variable."
+                f"Please set {credential_hint}."
             )
             raise ModelConfigError(msg)
 

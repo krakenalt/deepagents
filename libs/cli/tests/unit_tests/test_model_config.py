@@ -23,6 +23,7 @@ from deepagents_cli.model_config import (
     clear_caches,
     clear_default_model,
     get_available_models,
+    get_credential_hint,
     get_model_profiles,
     has_provider_credentials,
     is_warning_suppressed,
@@ -123,6 +124,20 @@ class TestHasProviderCredentials:
         """Returns False when provider env var is not set."""
         with patch.dict("os.environ", {}, clear=True):
             assert has_provider_credentials("anthropic") is False
+
+    def test_gigachat_returns_true_with_user_password(self):
+        """GigaChat accepts basic auth as an alternative to credentials."""
+        with patch.dict(
+            "os.environ",
+            {"GIGACHAT_USER": "user", "GIGACHAT_PASSWORD": "password"},
+            clear=True,
+        ):
+            assert has_provider_credentials("gigachat") is True
+
+    def test_gigachat_returns_false_with_partial_user_password(self):
+        """GigaChat requires both user and password when no credentials are set."""
+        with patch.dict("os.environ", {"GIGACHAT_USER": "user"}, clear=True):
+            assert has_provider_credentials("gigachat") is False
 
     def test_returns_true_with_prefixed_env_var(self):
         """Returns True when only the DEEPAGENTS_CLI_ prefixed var is set."""
@@ -487,6 +502,7 @@ class TestProviderApiKeyEnv:
         assert PROVIDER_API_KEY_ENV["cohere"] == "COHERE_API_KEY"
         assert PROVIDER_API_KEY_ENV["deepseek"] == "DEEPSEEK_API_KEY"
         assert PROVIDER_API_KEY_ENV["fireworks"] == "FIREWORKS_API_KEY"
+        assert PROVIDER_API_KEY_ENV["gigachat"] == "GIGACHAT_CREDENTIALS"
         assert PROVIDER_API_KEY_ENV["google_genai"] == "GOOGLE_API_KEY"
         assert PROVIDER_API_KEY_ENV["google_vertexai"] == "GOOGLE_CLOUD_PROJECT"
         assert PROVIDER_API_KEY_ENV["groq"] == "GROQ_API_KEY"
@@ -499,6 +515,17 @@ class TestProviderApiKeyEnv:
         assert PROVIDER_API_KEY_ENV["perplexity"] == "PPLX_API_KEY"
         assert PROVIDER_API_KEY_ENV["together"] == "TOGETHER_API_KEY"
         assert PROVIDER_API_KEY_ENV["xai"] == "XAI_API_KEY"
+
+
+class TestGetCredentialHint:
+    """Tests for get_credential_hint()."""
+
+    def test_returns_gigachat_multi_auth_hint(self) -> None:
+        """GigaChat hint should mention both supported auth paths."""
+        assert (
+            get_credential_hint("gigachat")
+            == "GIGACHAT_CREDENTIALS or both GIGACHAT_USER and GIGACHAT_PASSWORD"
+        )
 
 
 class TestModelConfigLoad:
@@ -2130,7 +2157,8 @@ class TestGetProviderProfileModules:
         assert ("openai", "langchain_openai.data._profiles") in result
         assert ("ollama", "langchain_ollama.data._profiles") in result
         assert ("fireworks", "langchain_fireworks.data._profiles") in result
-        assert len(result) == 4
+        assert ("gigachat", "langchain_gigachat.data._profiles") in result
+        assert len(result) == 5
 
     def test_handles_submodule_paths(self):
         """Extracts package root from dotted module paths like 'pkg.submodule'."""
@@ -2149,7 +2177,18 @@ class TestGetProviderProfileModules:
 
         assert result == [
             ("google_anthropic_vertex", "langchain_google_vertexai.data._profiles"),
+            ("gigachat", "langchain_gigachat.data._profiles"),
         ]
+
+    def test_appends_extra_provider_profiles(self):
+        """Adds providers that langchain does not expose in its registry."""
+        with patch(
+            "deepagents_cli.model_config._get_builtin_providers",
+            return_value={},
+        ):
+            result = _get_provider_profile_modules()
+
+        assert result == [("gigachat", "langchain_gigachat.data._profiles")]
 
 
 class TestGetBuiltinProviders:

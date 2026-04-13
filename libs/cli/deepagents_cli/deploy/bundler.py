@@ -43,6 +43,7 @@ _MODEL_PROVIDER_DEPS: dict[str, str] = {
     "cohere": "langchain-cohere",
     "deepseek": "langchain-deepseek",
     "fireworks": "langchain-fireworks",
+    "gigachat": "langchain-gigachat",
     "google_genai": "langchain-google-genai",
     "google_vertexai": "langchain-google-vertexai",
     "groq": "langchain-groq",

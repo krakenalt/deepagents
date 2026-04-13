@@ -271,6 +271,23 @@ class TestValidateModelCredentials:
         monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
         assert _validate_model_credentials("anthropic:claude-sonnet-4-6") == []
 
+    def test_gigachat_user_password_passes(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.delenv("GIGACHAT_CREDENTIALS", raising=False)
+        monkeypatch.setenv("GIGACHAT_USER", "alice")
+        monkeypatch.setenv("GIGACHAT_PASSWORD", "secret")
+        assert _validate_model_credentials("gigachat:GigaChat-3-Ultra") == []
+
+    def test_gigachat_missing_auth_warns(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("GIGACHAT_CREDENTIALS", raising=False)
+        monkeypatch.delenv("GIGACHAT_USER", raising=False)
+        monkeypatch.delenv("GIGACHAT_PASSWORD", raising=False)
+        errors = _validate_model_credentials("gigachat:GigaChat-3-Ultra")
+        assert len(errors) == 1
+        assert "GIGACHAT_CREDENTIALS" in errors[0]
+        assert "GIGACHAT_USER" in errors[0]
+
 
 class TestValidateSandboxCredentials:
     def test_unknown_provider_skips(self) -> None:

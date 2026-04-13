@@ -256,6 +256,11 @@ _MODEL_PROVIDER_ENV: dict[str, str] = {
     "deepseek": "DEEPSEEK_API_KEY",
     "openrouter": "OPENROUTER_API_KEY",
     "perplexity": "PPLX_API_KEY",
+    "gigachat": "GIGACHAT_CREDENTIALS",
+}
+
+_MODEL_PROVIDER_CREDENTIAL_HINTS: dict[str, str] = {
+    "gigachat": "GIGACHAT_CREDENTIALS or both GIGACHAT_USER and GIGACHAT_PASSWORD",
 }
 
 _SANDBOX_PROVIDER_ENV: dict[str, list[str]] = {
@@ -275,6 +280,19 @@ def _validate_model_credentials(model: str) -> list[str]:
     if ":" not in model:
         return []
     provider = model.split(":", 1)[0]
+    if provider == "gigachat":
+        if os.environ.get("GIGACHAT_CREDENTIALS") or (
+            os.environ.get("GIGACHAT_USER") and os.environ.get("GIGACHAT_PASSWORD")
+        ):
+            return []
+        return [
+            (
+                f"Missing API key for model provider '{provider}': "
+                "set "
+                f"{_MODEL_PROVIDER_CREDENTIAL_HINTS[provider]} "
+                "in your .env file or environment."
+            ),
+        ]
     env_var = _MODEL_PROVIDER_ENV.get(provider)
     if env_var is None:
         return []
