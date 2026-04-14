@@ -1034,7 +1034,6 @@ dependencies = [
     { name = "httpx" },
     { name = "langchain" },
     { name = "langchain-anthropic" },
-    { name = "langchain-gigachat" },
     { name = "langchain-google-genai" },
     { name = "langchain-mcp-adapters" },
     { name = "langchain-openai" },
@@ -1071,6 +1070,7 @@ all-providers = [
     { name = "langchain-cohere" },
     { name = "langchain-deepseek" },
     { name = "langchain-fireworks" },
+    { name = "langchain-gigachat" },
     { name = "langchain-google-genai" },
     { name = "langchain-google-vertexai" },
     { name = "langchain-groq" },
@@ -1111,6 +1111,9 @@ deepseek = [
 ]
 fireworks = [
     { name = "langchain-fireworks" },
+]
+gigachat = [
+    { name = "langchain-gigachat" },
 ]
 google-genai = [
     { name = "langchain-google-genai" },
@@ -1184,7 +1187,7 @@ requires-dist = [
     { name = "deepagents", editable = "../deepagents" },
     { name = "deepagents-acp", specifier = ">=0.0.4" },
     { name = "deepagents-cli", extras = ["agentcore", "daytona", "modal", "runloop"], marker = "extra == 'all-sandboxes'" },
-    { name = "deepagents-cli", extras = ["anthropic", "baseten", "bedrock", "cohere", "deepseek", "fireworks", "google-genai", "groq", "huggingface", "ibm", "litellm", "mistralai", "nvidia", "ollama", "openai", "openrouter", "perplexity", "vertexai", "xai"], marker = "extra == 'all-providers'" },
+    { name = "deepagents-cli", extras = ["anthropic", "baseten", "bedrock", "cohere", "deepseek", "fireworks", "google-genai", "gigachat", "groq", "huggingface", "ibm", "litellm", "mistralai", "nvidia", "ollama", "openai", "openrouter", "perplexity", "vertexai", "xai"], marker = "extra == 'all-providers'" },
     { name = "httpx", specifier = ">=0.28.1,<1.0.0" },
     { name = "langchain", specifier = ">=1.2.15,<2.0.0" },
     { name = "langchain-agentcore-codeinterpreter", marker = "extra == 'agentcore'", specifier = ">=0.0.1" },
@@ -1196,7 +1199,7 @@ requires-dist = [
     { name = "langchain-daytona", marker = "extra == 'daytona'", editable = "../partners/daytona" },
     { name = "langchain-deepseek", marker = "extra == 'deepseek'", specifier = ">=1.0.0,<2.0.0" },
     { name = "langchain-fireworks", marker = "extra == 'fireworks'", specifier = ">=1.0.0,<2.0.0" },
-    { name = "langchain-gigachat", specifier = ">=0.5.0" },
+    { name = "langchain-gigachat", marker = "extra == 'gigachat'", specifier = ">=0.5.0,<1" },
     { name = "langchain-google-genai", specifier = ">=4.2.1,<5.0.0" },
     { name = "langchain-google-genai", marker = "extra == 'google-genai'", specifier = ">=4.2.1,<5.0.0" },
     { name = "langchain-google-vertexai", marker = "extra == 'vertexai'", specifier = ">=3.0.0,<4.0.0" },
@@ -1236,7 +1239,7 @@ requires-dist = [
     { name = "tomli-w", specifier = ">=1.0.0,<2.0.0" },
     { name = "uuid-utils", specifier = ">=0.10.0,<1.0.0" },
 ]
-provides-extras = ["anthropic", "baseten", "bedrock", "cohere", "deepseek", "fireworks", "google-genai", "groq", "huggingface", "ibm", "litellm", "mistralai", "nvidia", "ollama", "openai", "openrouter", "perplexity", "vertexai", "xai", "all-providers", "agentcore", "daytona", "modal", "runloop", "all-sandboxes"]
+provides-extras = ["anthropic", "baseten", "bedrock", "cohere", "deepseek", "fireworks", "google-genai", "gigachat", "groq", "huggingface", "ibm", "litellm", "mistralai", "nvidia", "ollama", "openai", "openrouter", "perplexity", "vertexai", "xai", "all-providers", "agentcore", "daytona", "modal", "runloop", "all-sandboxes"]
 
 [package.metadata.requires-dev]
 test = [

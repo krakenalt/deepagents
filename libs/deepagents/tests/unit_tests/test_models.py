@@ -133,6 +133,7 @@ class TestResolveModel:
 
         fake_module.GigaChat.assert_called_once_with(
             model="GigaChat-3-Ultra",
+            allow_any_tool_choice_fallback=True,
             auth_url="https://auth.example",
             base_url="https://base.example",
             user="alice",
@@ -603,6 +604,10 @@ class TestBuiltInProfiles:
     def test_openai_profile_sets_responses_api(self) -> None:
         profile = _get_harness_profile("openai:gpt-5")
         assert profile.init_kwargs == {"use_responses_api": True}
+
+    def test_gigachat_profile_sets_tool_choice_fallback(self) -> None:
+        profile = _get_harness_profile("gigachat:GigaChat-2-Max")
+        assert profile.init_kwargs == {"allow_any_tool_choice_fallback": True}
 
     def test_openrouter_profile_has_pre_init_and_factory(self) -> None:
         profile = _get_harness_profile("openrouter:anthropic/claude-sonnet-4-6")

@@ -19,6 +19,9 @@ curl -LsSf https://raw.githubusercontent.com/langchain-ai/deepagents/main/libs/c
 # With model provider extras
 # OpenAI, Anthropic, and Gemini are included by default
 DEEPAGENTS_EXTRAS="nvidia,ollama" curl -LsSf https://raw.githubusercontent.com/langchain-ai/deepagents/main/libs/cli/scripts/install.sh | bash
+
+# GigaChat
+DEEPAGENTS_EXTRAS="gigachat" curl -LsSf https://raw.githubusercontent.com/langchain-ai/deepagents/main/libs/cli/scripts/install.sh | bash
 ```
 
 Or install directly with `uv`:
@@ -27,7 +30,10 @@ Or install directly with `uv`:
 # Install with chosen model providers
 uv tool install 'deepagents-cli[nvidia,ollama]'
 
-# Add a provider package directly when it is not bundled as an extra
+# Install GigaChat support
+uv tool install 'deepagents-cli[gigachat]'
+
+# Or add the provider package to an existing installation
 uv tool install deepagents-cli --with langchain-gigachat
 ```
 
@@ -36,6 +42,52 @@ Run the CLI:
 ```bash
 deepagents
 ```
+
+## GigaChat
+
+`deepagents-cli` can run with [`langchain-gigachat`](https://pypi.org/project/langchain-gigachat/), which is compatible with LangChain 1.x.
+
+Install the CLI with the `gigachat` extra:
+
+```bash
+uv tool install 'deepagents-cli[gigachat]'
+```
+
+Configure authentication in `~/.deepagents/.env`:
+
+```bash
+# Recommended: OAuth authorization key
+GIGACHAT_CREDENTIALS="<your_authorization_key>"
+
+# Optional: select a scope when using B2B or CORP access
+# GIGACHAT_SCOPE="GIGACHAT_API_B2B"
+
+# Optional: custom endpoints
+# GIGACHAT_BASE_URL="https://gigachat.devices.sberbank.ru/api/v1"
+# GIGACHAT_AUTH_URL="https://ngw.devices.sberbank.ru:9443/api/v2/oauth"
+```
+
+The CLI also supports username/password auth when `GIGACHAT_CREDENTIALS` is not set:
+
+```bash
+GIGACHAT_USER="<username>"
+GIGACHAT_PASSWORD="<password>"
+```
+
+Start Deep Agents with a GigaChat model explicitly:
+
+```bash
+deepagents --model gigachat:GigaChat-2-Max
+```
+
+Or make GigaChat the persistent default in `~/.deepagents/config.toml`:
+
+```toml
+[models]
+default = "gigachat:GigaChat-2-Max"
+```
+
+If your environment requires the Russian trusted root certificate chain, configure the underlying SDK via `GIGACHAT_CA_BUNDLE_FILE`. See the [`gigachat`](https://pypi.org/project/gigachat/) package docs for the full TLS and authentication options.
 
 ## 🤔 What is this?
 
